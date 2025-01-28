@@ -3,3 +3,5 @@ groq
 gunicorn
 requests
 beautifulsoup4
+transformers
+streamlit
