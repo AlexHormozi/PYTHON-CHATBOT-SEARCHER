@@ -1,12 +1,10 @@
-pip install transformers streamlit requests
-
-from groq import Groq
-
-
-import requests
-from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify
 import os
 from groq import Groq
+import requests
+from bs4 import BeautifulSoup
+
+app = Flask(__name__)
 
 # Initialize Groq client with your API key
 groq_api_key = "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"
@@ -22,35 +20,38 @@ def fetch_and_parse_html(url):
         print(f"Error fetching data: {e}")
         return None
 
-# Example usage
-url = "https://my.clevelandclinic.org/health/treatments/24902-craniotomy"
-soup = fetch_and_parse_html(url)
+@app.route('/chat', methods=['POST'])
+def chat():
+    user_query = request.json.get('message')
+    url = request.json.get('url')  # Assuming you pass the URL in the request
+    
+    # Fetch and parse HTML data
+    soup = fetch_and_parse_html(url)
+    if soup:
+        paragraphs = soup.find_all('p')
+        data = " ".join([p.text.strip() for p in paragraphs[:5]])  # Extract first few paragraphs
+    else:
+        data = "Failed to fetch data."
+    
+    # Generate response using Groq API
+    response = generate_response(user_query, data)
+    return jsonify({"response": response})
 
-if soup:
-    # Extract relevant sections (e.g., paragraphs)
-    paragraphs = soup.find_all('p')
-    relevant_data = " ".join([p.text.strip() for p in paragraphs[:5]])  # Extract first few paragraphs
-
-    # Prepare a prompt for Groq API
+def generate_response(user_query, data):
     system_prompt = f"""
     You are a helpful assistant. Use this external information to answer questions:
-    {relevant_data}
+    {data}
     """
+    
+    response = groq.chat.completions.create(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_query},
+        ],
+        model="llama3-70b-8192"
+    )
+    
+    return response.choices[0].message.content
 
-    # Generate response using Groq API
-    def generate_response(user_query):
-        response = groq.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_query},
-            ],
-            model="llama3-70b-8192"
-        )
-        return response.choices[0].message.content
-
-    # Example usage
-    user_query = "What is a craniotomy?"
-    response = generate_response(user_query)
-    print("Chatbot Response:", response)
-else:
-    print("Failed to fetch data.")
+if __name__ == '__main__':
+    app.run(debug=True)
