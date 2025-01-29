@@ -77,6 +77,19 @@ def delete_user():
     else:
         return jsonify({"error": "User ID not found"}), 404
 
+@app.route('/generate-embed-link', methods=['POST'])
+def generate_embed_link():
+    user_id = request.json.get('user_id')
+    
+    if not user_id:
+        user_id = generate_user_id()
+        user_ids[user_id] = []  # Initialize with an empty list of URLs
+    
+    # Generate the embed code dynamically based on the user ID
+    embed_code = f'<iframe src="https://python-chatbot-searcher.onrender.com/chat?user_id={user_id}" width="100%" height="500"></iframe>'
+    
+    return jsonify({"embed_code": embed_code, "user_id": user_id})
+
 @app.route('/chat', methods=['POST'])
 def chat():
     user_id = request.json.get('user_id')
